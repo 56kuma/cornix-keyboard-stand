@@ -7,29 +7,45 @@ from pathlib import Path
 PHI = (1 + sqrt(5)) / 2
 
 # Dimensions are in millimeters.
-# Measure these two values on the real Cornix LP for a true snug fit.
-KEYBOARD_SHORT_EDGE = 96.0
-KEYBOARD_THICKNESS = 24.0
-FIT_CLEARANCE = 0.5
+# Derived from scan/cornix_lp_scaniverse_2026-06-16_221047.stl and photo ruler checks.
+# Confirm with calipers before a final print.
+KEYBOARD_LONG_EDGE_MAX = 163.9
+KEYBOARD_LONG_EDGE_CONTACT = 144.0
+KEYBOARD_SHORT_EDGE_MAX = 111.3
+KEYBOARD_SHORT_EDGE_CONTACT = 88.0
+KEYBOARD_THICKNESS_MAX_SCAN = 26.4
+KEYBOARD_THICKNESS = 10.0
+FIT_CLEARANCE = 0.8
+GROOVE_CAPTURE_HEIGHT = 1.0
+GROOVE_LIP_WIDTH = 1.0
+GROOVE_FLOOR_HEIGHT = 0.35
+GROOVE_END_INSET = 3.0
 
-SLOT_INNER_LENGTH = KEYBOARD_SHORT_EDGE + FIT_CLEARANCE
-SLOT_INNER_WIDTH = KEYBOARD_THICKNESS + FIT_CLEARANCE
+SLOT_INNER_LENGTH = KEYBOARD_SHORT_EDGE_CONTACT + FIT_CLEARANCE
+GROOVE_INNER_WIDTH = KEYBOARD_THICKNESS + FIT_CLEARANCE
+SLOT_INNER_WIDTH = GROOVE_INNER_WIDTH + GROOVE_LIP_WIDTH * 2
 
 BENTO_REFERENCE_DEPTH = 120.0
 BENTO_REFERENCE_HEIGHT = 55.0
 
-BASE_DEPTH = BENTO_REFERENCE_DEPTH
-BASE_WIDTH = BASE_DEPTH / PHI
 BASE_THICKNESS = 6.0
 BASE_CHAMFER = 8.0
 BASE_TOP_INSET = 2.5
+BASE_FRAME_RAIL = 5.0
+BASE_CROSS_RAIL = 3.2
+BASE_SIDE_MARGIN = 3.0
 
 OUTER_WALL_THICKNESS = 5.0
 DIVIDER_THICKNESS = 6.0
 END_STOP_THICKNESS = 4.0
 
-SIDE_WALL_HEIGHT = BENTO_REFERENCE_HEIGHT - BASE_THICKNESS
+STAND_OVERALL_HEIGHT = min(BENTO_REFERENCE_HEIGHT, round(KEYBOARD_LONG_EDGE_CONTACT / PHI**2, 1))
+SIDE_WALL_HEIGHT = STAND_OVERALL_HEIGHT - BASE_THICKNESS
 SIDE_WALL_TOP_BEVEL = 2.4
+LOWER_CAPTURE_HEIGHT = 15.0
+TOP_RAIL_HEIGHT = 4.0
+LATTICE_BAR = 3.0
+LATTICE_VERTICALS = 4
 END_STOP_HEIGHT = 13.0
 END_STOP_HOOK_OVERHANG = 1.0
 
@@ -38,6 +54,16 @@ RIB_HEIGHT = SIDE_WALL_HEIGHT / PHI
 RIB_RUN = 14.0
 
 SLOT_PAIR_WIDTH = SLOT_INNER_WIDTH * 2 + DIVIDER_THICKNESS
+BASE_WIDTH = max(
+    BENTO_REFERENCE_DEPTH / PHI,
+    SLOT_PAIR_WIDTH + OUTER_WALL_THICKNESS * 2 + BASE_SIDE_MARGIN * 2,
+)
+BASE_DEPTH = max(
+    BENTO_REFERENCE_DEPTH,
+    BASE_WIDTH * PHI,
+    KEYBOARD_SHORT_EDGE_MAX + END_STOP_THICKNESS * 2 + BASE_FRAME_RAIL * 2,
+    SLOT_INNER_LENGTH + END_STOP_THICKNESS * 2 + BASE_FRAME_RAIL * 2,
+)
 SLOT_X0 = (BASE_WIDTH - SLOT_PAIR_WIDTH) / 2
 SLOT_1_X0 = SLOT_X0
 SLOT_1_X1 = SLOT_1_X0 + SLOT_INNER_WIDTH
@@ -161,60 +187,170 @@ def add_x_prism(name: str, x0: float, x1: float, yz: list[Vec2]) -> None:
         add_quad(name, left[i], right[i], right[j], left[j])
 
 
+def add_xy_bar(name: str, start: Vec2, end: Vec2, width: float, z0: float, z1: float) -> None:
+    x0, y0 = start
+    x1, y1 = end
+    dx = x1 - x0
+    dy = y1 - y0
+    length = (dx * dx + dy * dy) ** 0.5
+    if length == 0:
+        return
+    nx = -dy / length * width / 2
+    ny = dx / length * width / 2
+    bottom = [
+        (x0 + nx, y0 + ny),
+        (x1 + nx, y1 + ny),
+        (x1 - nx, y1 - ny),
+        (x0 - nx, y0 - ny),
+    ]
+    add_layered_prism(name, [(z0, bottom), (z1, bottom)])
+
+
+def add_yz_bar(name: str, x0: float, x1: float, start: Vec2, end: Vec2, width: float) -> None:
+    y0, z0 = start
+    y1, z1 = end
+    dy = y1 - y0
+    dz = z1 - z0
+    length = (dy * dy + dz * dz) ** 0.5
+    if length == 0:
+        return
+    ny = -dz / length * width / 2
+    nz = dy / length * width / 2
+    yz = [
+        (y0 + ny, z0 + nz),
+        (y1 + ny, z1 + nz),
+        (y1 - ny, z1 - nz),
+        (y0 - ny, z0 - nz),
+    ]
+    add_x_prism(name, x0, x1, yz)
+
+
 def add_base() -> None:
-    bottom = chamfered_rect(0.0, 0.0, BASE_WIDTH, BASE_DEPTH, BASE_CHAMFER)
-    top = chamfered_rect(
-        BASE_TOP_INSET,
-        BASE_TOP_INSET,
-        BASE_WIDTH - BASE_TOP_INSET,
-        BASE_DEPTH - BASE_TOP_INSET,
-        BASE_CHAMFER - BASE_TOP_INSET,
+    rail = BASE_FRAME_RAIL
+    z0 = 0.0
+    z1 = BASE_THICKNESS
+
+    add_box("front_open_lattice_frame", BASE_CHAMFER, 0.0, z0, BASE_WIDTH - BASE_CHAMFER, rail, z1)
+    add_box("rear_open_lattice_frame", BASE_CHAMFER, BASE_DEPTH - rail, z0, BASE_WIDTH - BASE_CHAMFER, BASE_DEPTH, z1)
+    add_box("left_open_lattice_frame", 0.0, BASE_CHAMFER, z0, rail, BASE_DEPTH - BASE_CHAMFER, z1)
+    add_box("right_open_lattice_frame", BASE_WIDTH - rail, BASE_CHAMFER, z0, BASE_WIDTH, BASE_DEPTH - BASE_CHAMFER, z1)
+
+    add_xy_bar("front_left_chamfer_frame", (BASE_CHAMFER, rail / 2), (rail / 2, BASE_CHAMFER), rail, z0, z1)
+    add_xy_bar(
+        "front_right_chamfer_frame",
+        (BASE_WIDTH - BASE_CHAMFER, rail / 2),
+        (BASE_WIDTH - rail / 2, BASE_CHAMFER),
+        rail,
+        z0,
+        z1,
     )
-    add_layered_prism("snug_golden_ratio_plinth", [(0.0, bottom), (BASE_THICKNESS, top)])
+    add_xy_bar(
+        "rear_right_chamfer_frame",
+        (BASE_WIDTH - rail / 2, BASE_DEPTH - BASE_CHAMFER),
+        (BASE_WIDTH - BASE_CHAMFER, BASE_DEPTH - rail / 2),
+        rail,
+        z0,
+        z1,
+    )
+    add_xy_bar(
+        "rear_left_chamfer_frame",
+        (rail / 2, BASE_DEPTH - BASE_CHAMFER),
+        (BASE_CHAMFER, BASE_DEPTH - rail / 2),
+        rail,
+        z0,
+        z1,
+    )
+
+    support_y0 = max(rail, SLOT_Y0 - END_STOP_THICKNESS)
+    support_y1 = min(BASE_DEPTH - rail, SLOT_Y1 + END_STOP_THICKNESS)
+    for name, x0, x1 in (
+        ("left_wall_underframe", SLOT_1_X0 - OUTER_WALL_THICKNESS, SLOT_1_X0),
+        ("center_divider_underframe", DIVIDER_X0, DIVIDER_X1),
+        ("right_wall_underframe", SLOT_2_X1, SLOT_2_X1 + OUTER_WALL_THICKNESS),
+    ):
+        add_box(name, x0, support_y0, z0, x1, support_y1, z1)
+
+    for index, ratio in enumerate((1 / PHI**2, 1 / PHI), start=1):
+        y = SLOT_Y0 + SLOT_INNER_LENGTH * ratio
+        add_box(
+            f"golden_ratio_base_crossbar_{index}",
+            rail,
+            y - BASE_CROSS_RAIL / 2,
+            z0,
+            BASE_WIDTH - rail,
+            y + BASE_CROSS_RAIL / 2,
+            z1,
+        )
+
+    add_xy_bar(
+        "base_diagonal_lattice_a",
+        (rail + 2.0, SLOT_Y0 - END_STOP_THICKNESS),
+        (BASE_WIDTH - rail - 2.0, SLOT_Y1 + END_STOP_THICKNESS),
+        BASE_CROSS_RAIL,
+        z0,
+        z1,
+    )
+    add_xy_bar(
+        "base_diagonal_lattice_b",
+        (BASE_WIDTH - rail - 2.0, SLOT_Y0 - END_STOP_THICKNESS),
+        (rail + 2.0, SLOT_Y1 + END_STOP_THICKNESS),
+        BASE_CROSS_RAIL,
+        z0,
+        z1,
+    )
+
+
+def add_lattice_wall(name: str, x0: float, x1: float, y0: float, y1: float, peak: bool = False) -> None:
+    z0 = BASE_THICKNESS
+    z_lower = z0 + LOWER_CAPTURE_HEIGHT
+    z_top0 = z0 + SIDE_WALL_HEIGHT - TOP_RAIL_HEIGHT
+    z_top1 = z0 + SIDE_WALL_HEIGHT
+
+    add_box(f"{name}_lower_capture_rail", x0, y0, z0, x1, y1, z_lower)
+    add_box(f"{name}_top_lattice_rail", x0, y0, z_top0, x1, y1, z_top1)
+
+    for index in range(LATTICE_VERTICALS):
+        ratio = index / (LATTICE_VERTICALS - 1)
+        y = y0 + (y1 - y0) * ratio
+        post_y0 = max(y0, y - LATTICE_BAR / 2)
+        post_y1 = min(y1, y + LATTICE_BAR / 2)
+        add_box(f"{name}_vertical_post_{index + 1}", x0, post_y0, z0, x1, post_y1, z_top1)
+
+    y_a = y0 + (y1 - y0) / PHI**2
+    y_b = y0 + (y1 - y0) / PHI
+    add_yz_bar(f"{name}_diagonal_lattice_a", x0, x1, (y0, z_lower), (y_b, z_top0), LATTICE_BAR)
+    add_yz_bar(f"{name}_diagonal_lattice_b", x0, x1, (y_b, z_lower), (y1, z_top0), LATTICE_BAR)
+    add_yz_bar(f"{name}_diagonal_lattice_c", x0, x1, (y_a, z_top0), (y1, z_lower), LATTICE_BAR)
+    add_yz_bar(f"{name}_diagonal_lattice_d", x0, x1, (y0, z_top0), (y_a, z_lower), LATTICE_BAR)
+
+    if peak:
+        peak_x = (x0 + x1) / 2
+        add_y_prism(
+            f"{name}_center_peak_cap",
+            y0,
+            y1,
+            [
+                (x0, z_top0),
+                (x1, z_top0),
+                (peak_x, z_top1),
+            ],
+        )
 
 
 def add_outer_left_wall() -> None:
-    z0 = BASE_THICKNESS
-    z1 = BASE_THICKNESS + SIDE_WALL_HEIGHT
     x_inner = SLOT_1_X0
     x_outer = x_inner - OUTER_WALL_THICKNESS
-    xz = [
-        (x_outer, z0),
-        (x_inner, z0),
-        (x_inner, z1 - SIDE_WALL_TOP_BEVEL),
-        (x_inner - SIDE_WALL_TOP_BEVEL, z1),
-        (x_outer, z1 - SIDE_WALL_TOP_BEVEL * 1.6),
-    ]
-    add_y_prism("left_snug_blade_wall", SLOT_Y0, SLOT_Y1, xz)
+    add_lattice_wall("left_snug_lattice_wall", x_outer, x_inner, SLOT_Y0, SLOT_Y1)
 
 
 def add_outer_right_wall() -> None:
-    z0 = BASE_THICKNESS
-    z1 = BASE_THICKNESS + SIDE_WALL_HEIGHT
     x_inner = SLOT_2_X1
     x_outer = x_inner + OUTER_WALL_THICKNESS
-    xz = [
-        (x_inner, z0),
-        (x_outer, z0),
-        (x_outer, z1 - SIDE_WALL_TOP_BEVEL * 1.6),
-        (x_inner + SIDE_WALL_TOP_BEVEL, z1),
-        (x_inner, z1 - SIDE_WALL_TOP_BEVEL),
-    ]
-    add_y_prism("right_snug_blade_wall", SLOT_Y0, SLOT_Y1, xz)
+    add_lattice_wall("right_snug_lattice_wall", x_inner, x_outer, SLOT_Y0, SLOT_Y1)
 
 
 def add_center_divider() -> None:
-    z0 = BASE_THICKNESS
-    z1 = BASE_THICKNESS + SIDE_WALL_HEIGHT
-    peak_x = (DIVIDER_X0 + DIVIDER_X1) / 2
-    xz = [
-        (DIVIDER_X0, z0),
-        (DIVIDER_X1, z0),
-        (DIVIDER_X1, z1 - SIDE_WALL_TOP_BEVEL),
-        (peak_x, z1),
-        (DIVIDER_X0, z1 - SIDE_WALL_TOP_BEVEL),
-    ]
-    add_y_prism("center_snug_divider", SLOT_Y0, SLOT_Y1, xz)
+    add_lattice_wall("center_snug_lattice_divider", DIVIDER_X0, DIVIDER_X1, SLOT_Y0, SLOT_Y1, peak=True)
 
 
 def add_end_stops() -> None:
@@ -247,18 +383,36 @@ def add_end_stops() -> None:
     add_x_prism("rear_short_edge_hook_stop", x0, x1, rear_yz)
 
 
-def add_floor_contact_rails() -> None:
-    rail_h = 1.1
-    rail_w = 2.2
+def add_bottom_capture_grooves() -> None:
     for index, (x0, x1) in enumerate(((SLOT_1_X0, SLOT_1_X1), (SLOT_2_X0, SLOT_2_X1)), start=1):
+        y0 = SLOT_Y0 + GROOVE_END_INSET
+        y1 = SLOT_Y1 - GROOVE_END_INSET
         add_box(
-            f"thin_short_edge_floor_rail_{index}",
-            x0 + rail_w,
-            SLOT_Y0 + 3.0,
+            f"bottom_groove_floor_{index}",
+            x0 + GROOVE_LIP_WIDTH,
+            y0,
             BASE_THICKNESS,
-            x1 - rail_w,
-            SLOT_Y1 - 3.0,
-            BASE_THICKNESS + rail_h,
+            x1 - GROOVE_LIP_WIDTH,
+            y1,
+            BASE_THICKNESS + GROOVE_FLOOR_HEIGHT,
+        )
+        add_box(
+            f"left_1mm_bottom_groove_lip_{index}",
+            x0,
+            y0,
+            BASE_THICKNESS,
+            x0 + GROOVE_LIP_WIDTH,
+            y1,
+            BASE_THICKNESS + GROOVE_CAPTURE_HEIGHT,
+        )
+        add_box(
+            f"right_1mm_bottom_groove_lip_{index}",
+            x1 - GROOVE_LIP_WIDTH,
+            y0,
+            BASE_THICKNESS,
+            x1,
+            y1,
+            BASE_THICKNESS + GROOVE_CAPTURE_HEIGHT,
         )
 
 
@@ -294,7 +448,7 @@ def build_model() -> None:
     add_center_divider()
     add_outer_right_wall()
     add_end_stops()
-    add_floor_contact_rails()
+    add_bottom_capture_grooves()
     add_golden_ratio_ribs()
 
 
@@ -322,6 +476,9 @@ if __name__ == "__main__":
     print(f"Triangles: {len(triangles)}")
     print(f"Base: {BASE_WIDTH:.1f} x {BASE_DEPTH:.1f} x {BASE_THICKNESS:.1f} mm")
     print(f"Overall height: {BASE_THICKNESS + SIDE_WALL_HEIGHT:.1f} mm")
+    print(f"Keyboard contact rectangle: {KEYBOARD_LONG_EDGE_CONTACT:.1f} x {KEYBOARD_SHORT_EDGE_CONTACT:.1f} mm")
     print(f"Slot inner length: {SLOT_INNER_LENGTH:.1f} mm")
-    print(f"Slot inner width: {SLOT_INNER_WIDTH:.1f} mm")
+    print(f"Slot upper width: {SLOT_INNER_WIDTH:.1f} mm")
+    print(f"Bottom groove inner width: {GROOVE_INNER_WIDTH:.1f} mm")
+    print(f"Bottom groove height: {GROOVE_CAPTURE_HEIGHT:.1f} mm")
     print(f"Fit clearance: {FIT_CLEARANCE:.1f} mm total")

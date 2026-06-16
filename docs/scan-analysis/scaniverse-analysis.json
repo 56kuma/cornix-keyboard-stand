@@ -1,0 +1,60 @@
+{
+  "source": "D:\\c_cornix\\cornix-keyboard-stand\\scan\\cornix_lp_scaniverse_2026-06-16_221047.stl",
+  "vertex_count": 119907,
+  "triangle_count_estimate": 39969,
+  "unit_note": "raw STL units look like meters; converted to mm",
+  "raw_bounds": {
+    "min": [
+      -0.0833217054605484,
+      0.0035559050738811493,
+      -0.056235626339912415
+    ],
+    "max": [
+      0.0833217054605484,
+      0.03135642409324646,
+      0.056235626339912415
+    ],
+    "extents": [
+      0.1666434109210968,
+      0.02780051901936531,
+      0.11247125267982483
+    ]
+  },
+  "pca_extents_mm": [
+    169.19068308172467,
+    117.55511262132626,
+    29.48680769987898
+  ],
+  "pca_extents_1_99_mm": [
+    157.19766692464015,
+    108.02276300126358,
+    25.292104972788188
+  ],
+  "pca_extents_0_5_99_5_mm": [
+    163.89081884366166,
+    111.25813283884784,
+    26.37887569139329
+  ],
+  "sorted_extents_mm": [
+    169.19068308172467,
+    117.55511262132626,
+    29.48680769987898
+  ],
+  "sorted_extents_1_99_mm": [
+    157.19766692464015,
+    108.02276300126358,
+    25.292104972788188
+  ],
+  "sorted_extents_0_5_99_5_mm": [
+    163.89081884366166,
+    111.25813283884784,
+    26.37887569139329
+  ],
+  "recommended": {
+    "KEYBOARD_LONG_EDGE": 163.89081884366166,
+    "KEYBOARD_SHORT_EDGE": 111.25813283884784,
+    "KEYBOARD_THICKNESS": 26.37887569139329,
+    "FIT_CLEARANCE": 0.8,
+    "note": "Uses 0.5-99.5 percentile PCA extents to reduce scan noise. Confirm with calipers before final print."
+  }
+}
