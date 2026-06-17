@@ -20,10 +20,12 @@ GROOVE_CAPTURE_HEIGHT = 1.0
 GROOVE_LIP_WIDTH = 1.0
 GROOVE_FLOOR_HEIGHT = 0.35
 GROOVE_END_INSET = 3.0
+ENTRY_FLARE_CENTER = 4.0
+ENTRY_FLARE_OUTER = 7.0
 
 SLOT_INNER_LENGTH = KEYBOARD_SHORT_EDGE_CONTACT + FIT_CLEARANCE
 GROOVE_INNER_WIDTH = KEYBOARD_THICKNESS + FIT_CLEARANCE
-SLOT_INNER_WIDTH = GROOVE_INNER_WIDTH + GROOVE_LIP_WIDTH * 2
+SLOT_INNER_WIDTH = GROOVE_INNER_WIDTH + ENTRY_FLARE_CENTER + ENTRY_FLARE_OUTER
 
 BENTO_REFERENCE_DEPTH = 120.0
 BENTO_REFERENCE_HEIGHT = 55.0
@@ -34,6 +36,7 @@ BASE_TOP_INSET = 2.5
 BASE_FRAME_RAIL = 5.0
 BASE_CROSS_RAIL = 3.2
 BASE_SIDE_MARGIN = 3.0
+UNIBODY_SKIN_HEIGHT = 0.6
 
 OUTER_WALL_THICKNESS = 5.0
 DIVIDER_THICKNESS = 6.0
@@ -47,7 +50,7 @@ TOP_RAIL_HEIGHT = 4.0
 LATTICE_BAR = 3.0
 LATTICE_VERTICALS = 4
 END_STOP_HEIGHT = 13.0
-END_STOP_HOOK_OVERHANG = 1.0
+END_STOP_HOOK_OVERHANG = 0.0
 
 RIB_THICKNESS = 3.2
 RIB_HEIGHT = SIDE_WALL_HEIGHT / PHI
@@ -225,6 +228,51 @@ def add_yz_bar(name: str, x0: float, x1: float, start: Vec2, end: Vec2, width: f
     add_x_prism(name, x0, x1, yz)
 
 
+def add_unibody_bottom_skin() -> None:
+    outline = chamfered_rect(0.0, 0.0, BASE_WIDTH, BASE_DEPTH, BASE_CHAMFER)
+    add_layered_prism("bambu_safe_unibody_bottom_skin", [(0.0, outline), (UNIBODY_SKIN_HEIGHT, outline)])
+
+
+def add_print_safe_foundations() -> None:
+    for index, (x0, x1) in enumerate(((SLOT_1_X0, SLOT_1_X1), (SLOT_2_X0, SLOT_2_X1)), start=1):
+        add_box(
+            f"supported_bottom_groove_foundation_{index}",
+            x0,
+            SLOT_Y0 + GROOVE_END_INSET,
+            0.0,
+            x1,
+            SLOT_Y1 - GROOVE_END_INSET,
+            BASE_THICKNESS,
+        )
+
+    x0 = SLOT_1_X0 - OUTER_WALL_THICKNESS
+    x1 = SLOT_2_X1 + OUTER_WALL_THICKNESS
+    add_box(
+        "front_stop_integrated_foundation",
+        x0,
+        SLOT_Y0 - END_STOP_THICKNESS,
+        0.0,
+        x1,
+        SLOT_Y0,
+        BASE_THICKNESS,
+    )
+    add_box(
+        "rear_stop_integrated_foundation",
+        x0,
+        SLOT_Y1,
+        0.0,
+        x1,
+        SLOT_Y1 + END_STOP_THICKNESS,
+        BASE_THICKNESS,
+    )
+
+
+def groove_edges(slot_index: int, x0: float, x1: float) -> tuple[float, float]:
+    if slot_index == 1:
+        return x0 + ENTRY_FLARE_OUTER, x1 - ENTRY_FLARE_CENTER
+    return x0 + ENTRY_FLARE_CENTER, x1 - ENTRY_FLARE_OUTER
+
+
 def add_base() -> None:
     rail = BASE_FRAME_RAIL
     z0 = 0.0
@@ -387,30 +435,31 @@ def add_bottom_capture_grooves() -> None:
     for index, (x0, x1) in enumerate(((SLOT_1_X0, SLOT_1_X1), (SLOT_2_X0, SLOT_2_X1)), start=1):
         y0 = SLOT_Y0 + GROOVE_END_INSET
         y1 = SLOT_Y1 - GROOVE_END_INSET
+        groove_x0, groove_x1 = groove_edges(index, x0, x1)
         add_box(
             f"bottom_groove_floor_{index}",
-            x0 + GROOVE_LIP_WIDTH,
+            groove_x0,
             y0,
             BASE_THICKNESS,
-            x1 - GROOVE_LIP_WIDTH,
+            groove_x1,
             y1,
             BASE_THICKNESS + GROOVE_FLOOR_HEIGHT,
         )
         add_box(
             f"left_1mm_bottom_groove_lip_{index}",
-            x0,
+            groove_x0 - GROOVE_LIP_WIDTH,
             y0,
             BASE_THICKNESS,
-            x0 + GROOVE_LIP_WIDTH,
+            groove_x0,
             y1,
             BASE_THICKNESS + GROOVE_CAPTURE_HEIGHT,
         )
         add_box(
             f"right_1mm_bottom_groove_lip_{index}",
-            x1 - GROOVE_LIP_WIDTH,
+            groove_x1,
             y0,
             BASE_THICKNESS,
-            x1,
+            groove_x1 + GROOVE_LIP_WIDTH,
             y1,
             BASE_THICKNESS + GROOVE_CAPTURE_HEIGHT,
         )
@@ -443,7 +492,9 @@ def add_golden_ratio_ribs() -> None:
 
 
 def build_model() -> None:
+    add_unibody_bottom_skin()
     add_base()
+    add_print_safe_foundations()
     add_outer_left_wall()
     add_center_divider()
     add_outer_right_wall()
@@ -476,9 +527,11 @@ if __name__ == "__main__":
     print(f"Triangles: {len(triangles)}")
     print(f"Base: {BASE_WIDTH:.1f} x {BASE_DEPTH:.1f} x {BASE_THICKNESS:.1f} mm")
     print(f"Overall height: {BASE_THICKNESS + SIDE_WALL_HEIGHT:.1f} mm")
+    print(f"Unibody bottom skin: {UNIBODY_SKIN_HEIGHT:.1f} mm")
     print(f"Keyboard contact rectangle: {KEYBOARD_LONG_EDGE_CONTACT:.1f} x {KEYBOARD_SHORT_EDGE_CONTACT:.1f} mm")
     print(f"Slot inner length: {SLOT_INNER_LENGTH:.1f} mm")
-    print(f"Slot upper width: {SLOT_INNER_WIDTH:.1f} mm")
+    print(f"Slot insertion width: {SLOT_INNER_WIDTH:.1f} mm")
+    print(f"Entry flare: center +{ENTRY_FLARE_CENTER:.1f} mm, outer +{ENTRY_FLARE_OUTER:.1f} mm")
     print(f"Bottom groove inner width: {GROOVE_INNER_WIDTH:.1f} mm")
     print(f"Bottom groove height: {GROOVE_CAPTURE_HEIGHT:.1f} mm")
     print(f"Fit clearance: {FIT_CLEARANCE:.1f} mm total")
