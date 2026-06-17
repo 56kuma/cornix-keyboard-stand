@@ -20,10 +20,12 @@ GROOVE_CAPTURE_HEIGHT = 1.0
 GROOVE_LIP_WIDTH = 1.0
 GROOVE_FLOOR_HEIGHT = 0.35
 GROOVE_END_INSET = 3.0
+ENTRY_LENGTH_EXTRA = 1.0
 ENTRY_FLARE_CENTER = 4.0
-ENTRY_FLARE_OUTER = 7.0
+ENTRY_FLARE_OUTER = 8.0
 
-SLOT_INNER_LENGTH = KEYBOARD_SHORT_EDGE_CONTACT + FIT_CLEARANCE
+GROOVE_INNER_LENGTH = KEYBOARD_SHORT_EDGE_CONTACT + FIT_CLEARANCE
+SLOT_INNER_LENGTH = GROOVE_INNER_LENGTH + ENTRY_LENGTH_EXTRA
 GROOVE_INNER_WIDTH = KEYBOARD_THICKNESS + FIT_CLEARANCE
 SLOT_INNER_WIDTH = GROOVE_INNER_WIDTH + ENTRY_FLARE_CENTER + ENTRY_FLARE_OUTER
 
@@ -77,6 +79,8 @@ SLOT_2_X1 = SLOT_2_X0 + SLOT_INNER_WIDTH
 
 SLOT_Y0 = (BASE_DEPTH - SLOT_INNER_LENGTH) / 2
 SLOT_Y1 = SLOT_Y0 + SLOT_INNER_LENGTH
+GROOVE_Y0 = (BASE_DEPTH - GROOVE_INNER_LENGTH) / 2
+GROOVE_Y1 = GROOVE_Y0 + GROOVE_INNER_LENGTH
 
 Vec3 = tuple[float, float, float]
 Vec2 = tuple[float, float]
@@ -238,10 +242,10 @@ def add_print_safe_foundations() -> None:
         add_box(
             f"supported_bottom_groove_foundation_{index}",
             x0,
-            SLOT_Y0 + GROOVE_END_INSET,
+            GROOVE_Y0 + GROOVE_END_INSET,
             0.0,
             x1,
-            SLOT_Y1 - GROOVE_END_INSET,
+            GROOVE_Y1 - GROOVE_END_INSET,
             BASE_THICKNESS,
         )
 
@@ -433,8 +437,8 @@ def add_end_stops() -> None:
 
 def add_bottom_capture_grooves() -> None:
     for index, (x0, x1) in enumerate(((SLOT_1_X0, SLOT_1_X1), (SLOT_2_X0, SLOT_2_X1)), start=1):
-        y0 = SLOT_Y0 + GROOVE_END_INSET
-        y1 = SLOT_Y1 - GROOVE_END_INSET
+        y0 = GROOVE_Y0 + GROOVE_END_INSET
+        y1 = GROOVE_Y1 - GROOVE_END_INSET
         groove_x0, groove_x1 = groove_edges(index, x0, x1)
         add_box(
             f"bottom_groove_floor_{index}",
@@ -529,9 +533,11 @@ if __name__ == "__main__":
     print(f"Overall height: {BASE_THICKNESS + SIDE_WALL_HEIGHT:.1f} mm")
     print(f"Unibody bottom skin: {UNIBODY_SKIN_HEIGHT:.1f} mm")
     print(f"Keyboard contact rectangle: {KEYBOARD_LONG_EDGE_CONTACT:.1f} x {KEYBOARD_SHORT_EDGE_CONTACT:.1f} mm")
-    print(f"Slot inner length: {SLOT_INNER_LENGTH:.1f} mm")
+    print(f"Slot insertion length: {SLOT_INNER_LENGTH:.1f} mm")
     print(f"Slot insertion width: {SLOT_INNER_WIDTH:.1f} mm")
+    print(f"Entry length extra: +{ENTRY_LENGTH_EXTRA:.1f} mm")
     print(f"Entry flare: center +{ENTRY_FLARE_CENTER:.1f} mm, outer +{ENTRY_FLARE_OUTER:.1f} mm")
+    print(f"Bottom groove inner length: {GROOVE_INNER_LENGTH:.1f} mm")
     print(f"Bottom groove inner width: {GROOVE_INNER_WIDTH:.1f} mm")
     print(f"Bottom groove height: {GROOVE_CAPTURE_HEIGHT:.1f} mm")
     print(f"Fit clearance: {FIT_CLEARANCE:.1f} mm total")

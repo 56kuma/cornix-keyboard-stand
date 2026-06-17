@@ -12,6 +12,6 @@ Cornix LP キーボード用の 3D プリント収納スタンドを設計する
 - 写真ベース採寸図: [docs/photo-guides/photo1-measurement-annotated.jpg](docs/photo-guides/photo1-measurement-annotated.jpg), [docs/photo-guides/photo2-measurement-annotated.jpg](docs/photo-guides/photo2-measurement-annotated.jpg)
 - iPhone確認用ページ: [download.html](download.html)
 
-生成済み STL の外形は `74.2 x 129.3 x 55.0 mm` です。挿し込み口内寸は `88.8 x 21.8 mm`、底部のはめ込み溝は `88.8 x 10.8 x 1.0 mm` です。挿し込み口は中心側へ `4.0 mm`、外側へ `7.0 mm` 広げています。一体底スキンは `0.6 mm`、底部溝の総クリアランスは `0.8 mm` です。
+生成済み STL の外形は `74.2 x 129.3 x 55.0 mm` です。押し込み口内寸は `89.8 x 22.8 mm`、底部のはめ込み溝は `88.8 x 10.8 x 1.0 mm` です。押し込み口は縦方向へ `1.0 mm`、中心側へ `4.0 mm`、外側へ `8.0 mm` 広げています。一体底スキンは `0.6 mm`、底部溝の総クリアランスは `0.8 mm` です。
 
 Scaniverse解析からの推定値は、張り出し込み長辺最大 `163.9 mm`、張り出し込み短辺最大 `111.3 mm`、厚み最大 `26.4 mm` です。実測値を優先し、スタンド設計で見る矩形部は長辺 `144.0 mm`、短辺 `88.0 mm`、収納厚み `10.0 mm` として再設計しました。全高 `55.0 mm` は長辺矩形部 `144.0 mm` の約 `1 / φ²` です。スキャン値はノイズや欠けを含む可能性があるため、最終印刷前はノギスで `KEYBOARD_LONG_EDGE_CONTACT`、`KEYBOARD_SHORT_EDGE_CONTACT`、`KEYBOARD_THICKNESS` を確認してください。
