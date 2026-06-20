@@ -47,6 +47,16 @@
       text-decoration: none;
     }
 
+    a.download + a.download {
+      margin-top: 10px;
+    }
+
+    a.download.secondary {
+      background: #2a303b;
+      color: #f5f7fb;
+      border: 1px solid #525b6c;
+    }
+
     dl {
       margin: 22px 0 0;
       display: grid;
@@ -70,17 +80,20 @@
     <h1>Cornix LP Lattice Bento Dock</h1>
     <p>Scaniverse の 3D スキャンを参考にした、短辺下向き収納の Cornix LP 用 2 スロット STL です。</p>
     <a class="download" href="stl/cornix_lp_bookshelf_storage_stand.stl" download>STLをダウンロード</a>
+    <a class="download secondary" href="stl/cornix_lp_fit_check_coupon.stl" download>サイズ確認用STLをダウンロード</a>
     <dl>
       <dt>ファイル</dt>
       <dd>cornix_lp_bookshelf_storage_stand.stl</dd>
       <dt>外形</dt>
-      <dd>74.2 x 129.3 x 55.0 mm</dd>
+      <dd>74.2 x 128.3 x 55.0 mm</dd>
       <dt>スロット内寸</dt>
       <dd>押し込み口 89.8 x 22.8 mm / 底部溝 88.8 x 10.8 x 1.0 mm</dd>
       <dt>根拠</dt>
       <dd>実測矩形部: 144.0 x 88.0 mm / 実測厚み: 10.0 mm / Scaniverse推定: 163.9 x 111.3 x 26.4 mm</dd>
       <dt>Bambu Lab</dt>
-      <dd>一体底スキン0.6mm。宙に浮く独立パーツなし。</dd>
+      <dd>一体底スキン0.6mm。左右外周は壁ではなく、片側2本の独立した斜め支柱のみ。中央保持部は側面まっすぐ、先端だけ丸めた2枚フィン。</dd>
+      <dt>確認用</dt>
+      <dd>27.6 x 95.8 x 8.0 mm。押し込み口と底部溝は本番と同寸。</dd>
     </dl>
   </main>
 </body>

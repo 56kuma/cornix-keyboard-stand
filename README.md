@@ -2,16 +2,20 @@
 
 Cornix LP キーボード用の 3D プリント収納スタンドを設計するためのリポジトリです。
 
-現在の版は、Scaniverse で 3D スキャンした Cornix LP のメッシュを参考に再設計した、短辺下向き収納用の 2 スロット型「Lattice Bento Dock」です。材料費を抑えつつ見た目を良くするため、台座・側壁・中央ディバイダーを格子状フレームにしています。Bambu Lab でそのまま扱いやすいように、底面には `0.6 mm` の一体スキンを入れ、溝・ストッパー・格子が宙に浮かず台座へ連続する構造にしています。
+現在の版は、Scaniverse で 3D スキャンした Cornix LP のメッシュを参考に再設計した、短辺下向き収納用の 2 スロット型「Golden Ratio Airframe Dock」です。材料費を抑えつつ見た目を良くするため、台座・側壁・中央ディバイダーを最小限の格子状フレームにしています。Bambu Lab でそのまま扱いやすいように、底面には `0.6 mm` の一体スキンを入れ、溝・ストッパー・外周の 2 本支柱・中央の 2 枚フィンが宙に浮かず台座へ連続する構造にしています。
 
 - 設計計画: [docs/cornix-lp-bookshelf-storage-plan.md](docs/cornix-lp-bookshelf-storage-plan.md)
 - STL: [stl/cornix_lp_bookshelf_storage_stand.stl](stl/cornix_lp_bookshelf_storage_stand.stl)
+- サイズ確認用 STL: [stl/cornix_lp_fit_check_coupon.stl](stl/cornix_lp_fit_check_coupon.stl)
 - 生成スクリプト: [cad/generate_bookshelf_storage_stand.py](cad/generate_bookshelf_storage_stand.py)
+- サイズ確認用生成スクリプト: [cad/generate_fit_check_coupon.py](cad/generate_fit_check_coupon.py)
 - Scaniverse解析: [docs/scan-analysis/scaniverse-pca-projections.jpg](docs/scan-analysis/scaniverse-pca-projections.jpg)
 - 採寸ガイド図: [docs/cornix-lp-measurement-guide.svg](docs/cornix-lp-measurement-guide.svg)
 - 写真ベース採寸図: [docs/photo-guides/photo1-measurement-annotated.jpg](docs/photo-guides/photo1-measurement-annotated.jpg), [docs/photo-guides/photo2-measurement-annotated.jpg](docs/photo-guides/photo2-measurement-annotated.jpg)
 - iPhone確認用ページ: [download.html](download.html)
 
-生成済み STL の外形は `74.2 x 129.3 x 55.0 mm` です。押し込み口内寸は `89.8 x 22.8 mm`、底部のはめ込み溝は `88.8 x 10.8 x 1.0 mm` です。押し込み口は縦方向へ `1.0 mm`、中心側へ `4.0 mm`、外側へ `8.0 mm` 広げています。一体底スキンは `0.6 mm`、底部溝の総クリアランスは `0.8 mm` です。
+生成済み STL の外形は `74.2 x 128.3 x 55.0 mm` です。押し込み口内寸は `89.8 x 22.8 mm`、底部のはめ込み溝は `88.8 x 10.8 x 1.0 mm` です。押し込み口は縦方向へ `1.0 mm`、中心側へ `4.0 mm`、外側へ `8.0 mm` 広げています。一体底スキンは `0.6 mm`、底部溝の総クリアランスは `0.8 mm` です。左右外周は片側 2 本の独立した斜め支柱のみにし、支柱幅を中央フィン厚みと同じ `4.5 mm` に揃えました。大外側の短い補強支柱は削除しています。中央保持部は側面をまっすぐにした 2 枚フィンで、先端の丸めた三角形状は維持しています。STL 三角形数は `1104` です。
+
+材料を抑えてサイズ感だけ確認する場合は、1スロットの低いテストピース `cornix_lp_fit_check_coupon.stl` を先に印刷してください。外形は `27.6 x 95.8 x 8.0 mm` で、押し込み口 `89.8 x 22.8 mm` と底部溝 `88.8 x 10.8 x 1.0 mm` は本番と同じです。
 
 Scaniverse解析からの推定値は、張り出し込み長辺最大 `163.9 mm`、張り出し込み短辺最大 `111.3 mm`、厚み最大 `26.4 mm` です。実測値を優先し、スタンド設計で見る矩形部は長辺 `144.0 mm`、短辺 `88.0 mm`、収納厚み `10.0 mm` として再設計しました。全高 `55.0 mm` は長辺矩形部 `144.0 mm` の約 `1 / φ²` です。スキャン値はノイズや欠けを含む可能性があるため、最終印刷前はノギスで `KEYBOARD_LONG_EDGE_CONTACT`、`KEYBOARD_SHORT_EDGE_CONTACT`、`KEYBOARD_THICKNESS` を確認してください。
