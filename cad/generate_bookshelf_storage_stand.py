@@ -38,7 +38,9 @@ BASE_TOP_INSET = 2.5
 BASE_FRAME_RAIL = 4.5
 BASE_CROSS_RAIL = 2.8
 BASE_SIDE_MARGIN = 3.0
-UNIBODY_SKIN_HEIGHT = 0.6
+BASE_ROOT_PAD_RAIL = round(BASE_FRAME_RAIL * PHI, 1)
+BASE_DIAGONAL_RAIL = BASE_FRAME_RAIL
+BASE_SIDE_SPINE_WAIST = BASE_ROOT_PAD_RAIL
 SOFT_CHAMFER = 1.2
 TIP_FLAT_WIDTH = 1.6
 TIP_SHOULDER_DROP = 3.0
@@ -56,6 +58,8 @@ END_STOP_HOOK_OVERHANG = 0.0
 RIB_THICKNESS = 2.8
 CENTER_TRIANGLE_RIB_THICKNESS = round(RIB_THICKNESS * PHI, 1)
 OUTER_GUARD_PILLAR_WIDTH = CENTER_TRIANGLE_RIB_THICKNESS
+GOLDEN_SUPPORT_RATIOS = (1 / PHI**2, 1 / PHI)
+CENTER_FIN_TENON_DEPTH = BASE_THICKNESS
 
 SLOT_PAIR_WIDTH = SLOT_INNER_WIDTH * 2 + DIVIDER_THICKNESS
 BASE_WIDTH = max(
@@ -128,6 +132,53 @@ def rounded_rect(x0: float, y0: float, x1: float, y1: float, radius: float, segm
             angle = start + (end - start) * index / segments
             points.append((cx + cos(angle) * r, cy + sin(angle) * r))
     return points
+
+
+def octagon_outline(x0: float, y0: float, x1: float, y1: float, chamfer: float) -> list[Vec2]:
+    c = min(chamfer, (x1 - x0) / 2, (y1 - y0) / 2)
+    return [
+        (x0 + c, y0),
+        (x1 - c, y0),
+        (x1, y0 + c),
+        (x1, y1 - c),
+        (x1 - c, y1),
+        (x0 + c, y1),
+        (x0, y1 - c),
+        (x0, y0 + c),
+    ]
+
+
+def add_ring_prism(name: str, outer: list[Vec2], inner: list[Vec2], z0: float, z1: float) -> None:
+    if len(outer) != len(inner):
+        raise ValueError("Outer and inner loops must have the same point count")
+
+    count = len(outer)
+    outer_bottom = [(x, y, z0) for x, y in outer]
+    outer_top = [(x, y, z1) for x, y in outer]
+    inner_bottom = [(x, y, z0) for x, y in inner]
+    inner_top = [(x, y, z1) for x, y in inner]
+
+    for i in range(count):
+        j = (i + 1) % count
+        add_quad(name, outer_bottom[i], outer_bottom[j], outer_top[j], outer_top[i])
+        add_quad(name, inner_bottom[i], inner_top[i], inner_top[j], inner_bottom[j])
+        add_quad(name, outer_top[i], outer_top[j], inner_top[j], inner_top[i])
+        add_quad(name, outer_bottom[i], inner_bottom[i], inner_bottom[j], outer_bottom[j])
+
+
+def add_octagonal_outer_frame(name: str, rail: float, z0: float, z1: float) -> None:
+    outer = octagon_outline(0.0, 0.0, BASE_WIDTH, BASE_DEPTH, BASE_CHAMFER)
+    inner = [
+        (BASE_CHAMFER, rail),
+        (BASE_WIDTH - BASE_CHAMFER, rail),
+        (BASE_WIDTH - rail, BASE_CHAMFER),
+        (BASE_WIDTH - rail, BASE_DEPTH - BASE_CHAMFER),
+        (BASE_WIDTH - BASE_CHAMFER, BASE_DEPTH - rail),
+        (BASE_CHAMFER, BASE_DEPTH - rail),
+        (rail, BASE_DEPTH - BASE_CHAMFER),
+        (rail, BASE_CHAMFER),
+    ]
+    add_ring_prism(name, outer, inner, z0, z1)
 
 
 def soft_peak_profile(x0: float, x1: float, z0: float, z1: float) -> list[Vec2]:
@@ -232,6 +283,30 @@ def add_y_prism(name: str, y0: float, y1: float, xz: list[Vec2]) -> None:
         add_quad(name, front[i], back[i], back[j], front[j])
 
 
+def add_y_sweep(name: str, layers: list[tuple[float, list[Vec2]]]) -> None:
+    count = len(layers[0][1])
+    if any(len(points) != count for _, points in layers):
+        raise ValueError("All sweep profiles must have the same point count")
+
+    front_y, front_xz = layers[0]
+    rear_y, rear_xz = layers[-1]
+    front = [(x, front_y, z) for x, z in front_xz]
+    rear = [(x, rear_y, z) for x, z in rear_xz]
+
+    for i in range(1, count - 1):
+        add_triangle(name, front[0], front[i + 1], front[i])
+        add_triangle(name, rear[0], rear[i], rear[i + 1])
+
+    for layer_index in range(len(layers) - 1):
+        y0, xz0 = layers[layer_index]
+        y1, xz1 = layers[layer_index + 1]
+        ring0 = [(x, y0, z) for x, z in xz0]
+        ring1 = [(x, y1, z) for x, z in xz1]
+        for i in range(count):
+            j = (i + 1) % count
+            add_quad(name, ring0[i], ring1[i], ring1[j], ring0[j])
+
+
 def add_x_prism(name: str, x0: float, x1: float, yz: list[Vec2]) -> None:
     left = [(x0, y, z) for y, z in yz]
     right = [(x1, y, z) for y, z in yz]
@@ -265,6 +340,59 @@ def add_xy_bar(name: str, start: Vec2, end: Vec2, width: float, z0: float, z1: f
     add_layered_prism(name, [(z0, bottom), (z1, bottom)])
 
 
+def add_side_spine_segment(
+    name: str,
+    y0: float,
+    y1: float,
+    inner0: float,
+    inner1: float,
+    z0: float,
+    z1: float,
+) -> None:
+    if y1 <= y0:
+        return
+
+    left = [
+        (0.0, y0),
+        (0.0, y1),
+        (inner1, y1),
+        (inner0, y0),
+    ]
+    right = [
+        (BASE_WIDTH, y0),
+        (BASE_WIDTH - inner0, y0),
+        (BASE_WIDTH - inner1, y1),
+        (BASE_WIDTH, y1),
+    ]
+    add_layered_prism(f"left_faceted_side_spine_{name}", [(z0, left), (z1, left)])
+    add_layered_prism(f"right_faceted_side_spine_{name}", [(z0, right), (z1, right)])
+
+
+def add_faceted_side_spines(z0: float, z1: float) -> None:
+    y_positions = [SLOT_Y0 + SLOT_INNER_LENGTH * ratio for ratio in GOLDEN_SUPPORT_RATIOS]
+    root_half = BASE_ROOT_PAD_RAIL / 2
+    root_reach = SLOT_1_X0
+    waist = BASE_SIDE_SPINE_WAIST
+    end_width = BASE_FRAME_RAIL
+    y_front = max(BASE_CHAMFER, SLOT_Y0 - END_STOP_THICKNESS - root_half)
+    y_mid = (y_positions[0] + y_positions[1]) / 2
+    y_rear = min(BASE_DEPTH - BASE_CHAMFER, SLOT_Y1 + END_STOP_THICKNESS + root_half)
+
+    segments = [
+        ("front_taper", BASE_CHAMFER, y_front, end_width, waist),
+        ("front_shoulder", y_front, y_positions[0] - root_half, waist, root_reach),
+        ("front_root", y_positions[0] - root_half, y_positions[0] + root_half, root_reach, root_reach),
+        ("center_tuck_a", y_positions[0] + root_half, y_mid, root_reach, waist),
+        ("center_tuck_b", y_mid, y_positions[1] - root_half, waist, root_reach),
+        ("rear_root", y_positions[1] - root_half, y_positions[1] + root_half, root_reach, root_reach),
+        ("rear_shoulder", y_positions[1] + root_half, y_rear, root_reach, waist),
+        ("rear_taper", y_rear, BASE_DEPTH - BASE_CHAMFER, waist, end_width),
+    ]
+
+    for name, y0, y1, inner0, inner1 in segments:
+        add_side_spine_segment(name, y0, y1, inner0, inner1, z0, z1)
+
+
 def add_yz_bar(name: str, x0: float, x1: float, start: Vec2, end: Vec2, width: float) -> None:
     y0, z0 = start
     y1, z1 = end
@@ -284,43 +412,80 @@ def add_yz_bar(name: str, x0: float, x1: float, start: Vec2, end: Vec2, width: f
     add_x_prism(name, x0, x1, yz)
 
 
-def add_unibody_bottom_skin() -> None:
-    outline = rounded_rect(0.0, 0.0, BASE_WIDTH, BASE_DEPTH, BASE_CHAMFER, segments=6)
-    add_layered_prism("bambu_safe_unibody_bottom_skin", [(0.0, outline), (UNIBODY_SKIN_HEIGHT, outline)])
+def add_solid_octagonal_base() -> None:
+    outline = octagon_outline(0.0, 0.0, BASE_WIDTH, BASE_DEPTH, BASE_CHAMFER)
+    add_layered_prism("solid_octagonal_base_plate", [(0.0, outline), (BASE_THICKNESS, outline)])
 
 
 def add_print_safe_foundations() -> None:
+    z0 = 0.0
+    z1 = BASE_THICKNESS
+
     for index, (x0, x1) in enumerate(((SLOT_1_X0, SLOT_1_X1), (SLOT_2_X0, SLOT_2_X1)), start=1):
-        add_box(
-            f"supported_bottom_groove_foundation_{index}",
-            x0,
+        groove_x0, groove_x1 = groove_edges(index, x0, x1)
+        add_soft_box(
+            f"supported_bottom_groove_keel_{index}",
+            groove_x0 - GROOVE_LIP_WIDTH,
             GROOVE_Y0 + GROOVE_END_INSET,
-            0.0,
-            x1,
+            z0,
+            groove_x1 + GROOVE_LIP_WIDTH,
             GROOVE_Y1 - GROOVE_END_INSET,
-            BASE_THICKNESS,
+            z1,
         )
 
     x0 = SLOT_1_X0 - OUTER_WALL_THICKNESS
     x1 = SLOT_2_X1 + OUTER_WALL_THICKNESS
-    add_box(
+    stop_pad = END_STOP_THICKNESS * PHI
+    add_soft_box(
         "front_stop_integrated_foundation",
         x0,
-        SLOT_Y0 - END_STOP_THICKNESS,
-        0.0,
+        SLOT_Y0 - stop_pad,
+        z0,
         x1,
         SLOT_Y0,
-        BASE_THICKNESS,
+        z1,
     )
-    add_box(
+    add_soft_box(
         "rear_stop_integrated_foundation",
         x0,
         SLOT_Y1,
-        0.0,
+        z0,
         x1,
-        SLOT_Y1 + END_STOP_THICKNESS,
-        BASE_THICKNESS,
+        SLOT_Y1 + stop_pad,
+        z1,
     )
+
+    for index, ratio in enumerate(GOLDEN_SUPPORT_RATIOS, start=1):
+        y = SLOT_Y0 + SLOT_INNER_LENGTH * ratio
+        y0 = y - BASE_ROOT_PAD_RAIL / 2
+        y1 = y + BASE_ROOT_PAD_RAIL / 2
+        add_soft_box(
+            f"left_outer_pillar_root_pad_{index}",
+            SLOT_1_X0 - OUTER_WALL_THICKNESS,
+            y0,
+            z0,
+            SLOT_1_X0,
+            y1,
+            z1,
+        )
+        add_soft_box(
+            f"center_fin_root_pad_{index}",
+            DIVIDER_X0,
+            y0,
+            z0,
+            DIVIDER_X1,
+            y1,
+            z1,
+        )
+        add_soft_box(
+            f"right_outer_pillar_root_pad_{index}",
+            SLOT_2_X1,
+            y0,
+            z0,
+            SLOT_2_X1 + OUTER_WALL_THICKNESS,
+            y1,
+            z1,
+        )
 
 
 def groove_edges(slot_index: int, x0: float, x1: float) -> tuple[float, float]:
@@ -334,47 +499,10 @@ def add_base() -> None:
     z0 = 0.0
     z1 = BASE_THICKNESS
 
-    add_soft_box("front_open_lattice_frame", BASE_CHAMFER, 0.0, z0, BASE_WIDTH - BASE_CHAMFER, rail, z1)
-    add_soft_box("rear_open_lattice_frame", BASE_CHAMFER, BASE_DEPTH - rail, z0, BASE_WIDTH - BASE_CHAMFER, BASE_DEPTH, z1)
-    add_soft_box("left_open_lattice_frame", 0.0, BASE_CHAMFER, z0, rail, BASE_DEPTH - BASE_CHAMFER, z1)
-    add_soft_box("right_open_lattice_frame", BASE_WIDTH - rail, BASE_CHAMFER, z0, BASE_WIDTH, BASE_DEPTH - BASE_CHAMFER, z1)
+    add_octagonal_outer_frame("continuous_octagonal_outer_frame", rail, z0, z1)
+    add_faceted_side_spines(z0, z1)
 
-    add_xy_bar("front_left_chamfer_frame", (BASE_CHAMFER, rail / 2), (rail / 2, BASE_CHAMFER), rail, z0, z1)
-    add_xy_bar(
-        "front_right_chamfer_frame",
-        (BASE_WIDTH - BASE_CHAMFER, rail / 2),
-        (BASE_WIDTH - rail / 2, BASE_CHAMFER),
-        rail,
-        z0,
-        z1,
-    )
-    add_xy_bar(
-        "rear_right_chamfer_frame",
-        (BASE_WIDTH - rail / 2, BASE_DEPTH - BASE_CHAMFER),
-        (BASE_WIDTH - BASE_CHAMFER, BASE_DEPTH - rail / 2),
-        rail,
-        z0,
-        z1,
-    )
-    add_xy_bar(
-        "rear_left_chamfer_frame",
-        (rail / 2, BASE_DEPTH - BASE_CHAMFER),
-        (BASE_CHAMFER, BASE_DEPTH - rail / 2),
-        rail,
-        z0,
-        z1,
-    )
-
-    support_y0 = max(rail, SLOT_Y0 - END_STOP_THICKNESS)
-    support_y1 = min(BASE_DEPTH - rail, SLOT_Y1 + END_STOP_THICKNESS)
-    for name, x0, x1 in (
-        ("left_wall_underframe", SLOT_1_X0 - OUTER_WALL_THICKNESS, SLOT_1_X0),
-        ("center_divider_underframe", DIVIDER_X0, DIVIDER_X1),
-        ("right_wall_underframe", SLOT_2_X1, SLOT_2_X1 + OUTER_WALL_THICKNESS),
-    ):
-        add_soft_box(name, x0, support_y0, z0, x1, support_y1, z1)
-
-    for index, ratio in enumerate((1 / PHI**2, 1 / PHI), start=1):
+    for index, ratio in enumerate(GOLDEN_SUPPORT_RATIOS, start=1):
         y = SLOT_Y0 + SLOT_INNER_LENGTH * ratio
         add_soft_box(
             f"golden_ratio_base_crossbar_{index}",
@@ -390,7 +518,7 @@ def add_base() -> None:
         "base_diagonal_lattice_a",
         (rail + 2.0, SLOT_Y0 - END_STOP_THICKNESS),
         (BASE_WIDTH - rail - 2.0, SLOT_Y1 + END_STOP_THICKNESS),
-        BASE_CROSS_RAIL,
+        BASE_DIAGONAL_RAIL,
         z0,
         z1,
     )
@@ -398,7 +526,7 @@ def add_base() -> None:
         "base_diagonal_lattice_b",
         (BASE_WIDTH - rail - 2.0, SLOT_Y0 - END_STOP_THICKNESS),
         (rail + 2.0, SLOT_Y1 + END_STOP_THICKNESS),
-        BASE_CROSS_RAIL,
+        BASE_DIAGONAL_RAIL,
         z0,
         z1,
     )
@@ -438,7 +566,9 @@ def add_lattice_wall(
         add_soft_box(f"{name}_lower_capture_rail", x0, y0, z0, x1, y1, z_lower)
 
     if center_triangles:
-        rounded_triangle = soft_peak_profile(x0, x1, z_lower, z_top1)
+        # Keep the visible fin silhouette, but run it through the base so slicers
+        # treat the two center stops as locked into the solid octagonal plate.
+        rounded_triangle = soft_peak_profile(x0, x1, z0 - CENTER_FIN_TENON_DEPTH, z_top1)
         for index, ratio in enumerate((1 / PHI**2, 1 / PHI), start=1):
             y = y0 + (y1 - y0) * ratio
             rib_y0 = max(y0, y - CENTER_TRIANGLE_RIB_THICKNESS / 2)
@@ -458,8 +588,51 @@ def add_outer_right_wall() -> None:
     add_lattice_wall("right_snug_lattice_wall", x_inner, x_outer, SLOT_Y0, SLOT_Y1, outer_capture_guard=True)
 
 
+def center_divider_profile(z_top: float) -> list[Vec2]:
+    z0 = 0.0
+    z_lower = BASE_THICKNESS + LOWER_CAPTURE_HEIGHT
+    top = max(z_lower, z_top)
+    mid = (DIVIDER_X0 + DIVIDER_X1) / 2
+    half_width = min(TIP_FLAT_WIDTH / 2, DIVIDER_THICKNESS / 4)
+    shoulder = 0.0 if top <= z_lower else min(TIP_SHOULDER_DROP, (top - z0) / 3)
+    return [
+        (DIVIDER_X0, z0),
+        (DIVIDER_X1, z0),
+        (DIVIDER_X1, top - shoulder),
+        (mid + half_width, top),
+        (mid - half_width, top),
+        (DIVIDER_X0, top - shoulder),
+    ]
+
+
 def add_center_divider() -> None:
-    add_lattice_wall("center_snug_lattice_divider", DIVIDER_X0, DIVIDER_X1, SLOT_Y0, SLOT_Y1, center_triangles=True)
+    z_lower = BASE_THICKNESS + LOWER_CAPTURE_HEIGHT
+    z_top = BASE_THICKNESS + SIDE_WALL_HEIGHT
+    rib_half = CENTER_TRIANGLE_RIB_THICKNESS / 2
+    layers: list[tuple[float, list[Vec2]]] = [(SLOT_Y0, center_divider_profile(z_lower))]
+
+    for ratio in GOLDEN_SUPPORT_RATIOS:
+        y = SLOT_Y0 + SLOT_INNER_LENGTH * ratio
+        fin_y0 = max(SLOT_Y0, y - rib_half)
+        fin_y1 = min(SLOT_Y1, y + rib_half)
+        layers.extend(
+            [
+                (fin_y0, center_divider_profile(z_lower)),
+                (fin_y0, center_divider_profile(z_top)),
+                (fin_y1, center_divider_profile(z_top)),
+                (fin_y1, center_divider_profile(z_lower)),
+            ]
+        )
+
+    layers.append((SLOT_Y1, center_divider_profile(z_lower)))
+    deduped: list[tuple[float, list[Vec2]]] = []
+    for y, profile in sorted(layers, key=lambda item: item[0]):
+        if deduped and abs(y - deduped[-1][0]) < 0.001 and profile == deduped[-1][1]:
+            deduped[-1] = (y, profile)
+        else:
+            deduped.append((y, profile))
+
+    add_y_sweep("center_unibody_stepped_divider", deduped)
 
 
 def add_end_stops() -> None:
@@ -527,9 +700,7 @@ def add_bottom_capture_grooves() -> None:
 
 
 def build_model() -> None:
-    add_unibody_bottom_skin()
-    add_base()
-    add_print_safe_foundations()
+    add_solid_octagonal_base()
     add_outer_left_wall()
     add_center_divider()
     add_outer_right_wall()
@@ -561,7 +732,7 @@ if __name__ == "__main__":
     print(f"Triangles: {len(triangles)}")
     print(f"Base: {BASE_WIDTH:.1f} x {BASE_DEPTH:.1f} x {BASE_THICKNESS:.1f} mm")
     print(f"Overall height: {BASE_THICKNESS + SIDE_WALL_HEIGHT:.1f} mm")
-    print(f"Unibody bottom skin: {UNIBODY_SKIN_HEIGHT:.1f} mm")
+    print(f"Solid octagonal base: {BASE_THICKNESS:.1f} mm")
     print(f"Keyboard contact rectangle: {KEYBOARD_LONG_EDGE_CONTACT:.1f} x {KEYBOARD_SHORT_EDGE_CONTACT:.1f} mm")
     print(f"Slot insertion length: {SLOT_INNER_LENGTH:.1f} mm")
     print(f"Slot insertion width: {SLOT_INNER_WIDTH:.1f} mm")
